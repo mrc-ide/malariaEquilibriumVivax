@@ -13,26 +13,25 @@ knitr::opts_chunk$set(
 )
 ```
 
-# malariaEquilibrium
+# malariaEquilibriumVivax
 
-[![Travis build status](https://travis-ci.org/mrc-ide/malariaEquilibrium.svg?branch=master)](https://travis-ci.org/mrc-ide/malariaEquilibrium)
-[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/mrc-ide/malariaEquilibrium?branch=master&svg=true)](https://ci.appveyor.com/project/mrc-ide/malariaEquilibrium)
+[![Travis build status](https://travis-ci.org/mrc-ide/malariaEquilibriumVivax.svg?branch=master)](https://travis-ci.org/mrc-ide/malariaEquilibriumVivax)
+[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/mrc-ide/malariaEquilibriumVivax?branch=master&svg=true)](https://ci.appveyor.com/project/mrc-ide/malariaEquilibriumVivax)
 
-Often we are interested in the state of a malaria transmission model at
-equibrium. However, some models (e.g. the Griffin et al. 2014 model) are quite
-complex, and can result in equilibrium solutions that are fairly in-depth. In
-these situations it is useful to have a "canonical" equilibrium solution that is
-tried and tested, and can be used reliably by multiple users. This package aims
-to be a place for hosting these canonical solutions, and for storing useful
-tests, checks and plotting functions for exploring model predictions at
-equilibrium.
+Often we are interested in the state of a given malaria
+transmission model at equilibrium. However, some models (e.g. the Griffin et
+al. 2014 model, the White et al. 2018 model) are quite complex, and can result in equilibrium solutions
+that are fairly in-depth. In these situations it is useful to have a
+"canonical" equilibrium solution that is tried and tested, and can be used
+reliably by multiple users. This package complement the malariaEquilibrium 
+package to store canonical equilibrium solutions for Plasmodium vivax malaria models.
 
 ## How to interact with this repos
 
 If you have a new model with an equilibrium solution that you would like to host
 here, then please go ahead and do so *in a new branch*. The master branch, on
 the other hand, should always correspond to the current most active model used
-by the malaria group (currently the Griffin et al. 2014 model). This should
+by the malaria group (currently the White et al. 2018 model). This should
 generally be left alone unless you know what you're doing.
 
 Any changes that you propose to branches that you did not create yourself (e.g.
@@ -46,24 +45,24 @@ cause other packages to fail if they are not know about beforehand.
 
 ## Installation
 
-You can install from the master branch of malariaEquilibrium with:
+You can install from the master branch of malariaEquilibriumVivax with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("mrc-ide/malariaEquilibrium")
+devtools::install_github("mrc-ide/malariaEquilibriumVivax")
 ```
 
 Or from a specific branch with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("mrc-ide/malariaEquilibrium", ref = "mybranch")
+devtools::install_github("mrc-ide/malariaEquilibriumVivax", ref = "mybranch")
 ```
 
 Finally, don't forget to load the package with:
 
 ```{r}
-library(malariaEquilibrium)
+library(malariaEquilibriumVivax)
 ```
 
 ## Example
@@ -75,7 +74,7 @@ function. This loads an object from the *inst/extdata* folder of the package.
 Alternatively you can load your own parameter set from file.
 
 ```{r}
-myparams <- load_parameter_set("Jamie_parameters.rds")
+myparams <- load_parameter_set("Michael_parameters.rds")
 ```
 
 Parameters are of class `model_params`, which is essentially just an ordinary R
@@ -94,7 +93,7 @@ head(myparams)
 
 ### Getting the equilibrium solution
 
-Now we can calculate the equilibrium solution using the `human_equilibrium()`
+Now we can calculate the equilibrium solution using the `human_equilibrium_vivax_summarise()`
 function. This assumes a fixed EIR and treatment rate (`ft`), and takes model
 parameters as input. It calculates the equilibrium solution for a defined age
 range:
