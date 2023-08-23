@@ -1,327 +1,360 @@
 #------------------------------------------------
-#' @title Laod a Parameter Set from File
+#' @title Vivax equilibrium solution with biting heterogeneity
 #'
-#' @description Parameter sets are stored within the package
-#'   inst/extdata folder. Load one of these sets by name.
+#' @description Returns the vivax equilibrium states for the model of White et al.,
+#'   (2018).
 #'
-#' @param file_name the name of a parameter set within the
-#'   inst/extdata folder.
-#'
-#' @export
-
-load_parameter_set <- function(file_name = "Jamie_parameters.rds") {
-  
-  # check inputs
-  assert_single_string(file_name)
-  
-  # load parameter set from inst/extdata/parameter_sets folder
-  params <- malariaEq_file(file_name)
-  
-  return(params)
-}
-
-#------------------------------------------------
-#' @title Equilibrium solution without biting heterogeneity
-#'
-#' @description Returns the equilibrium states for the model of Griffin et al.
-#'   (2014). A derivation of the equilibrium solutions can be found in Griffin
-#'   (2016).
-#'
-#'   This function does not account for biting heterogeneity - see
-#'   \code{human_equilibrium()} for function that takes this into account.
+#'   This function does account for biting heterogeneity and return the 
+#'   equilibria listed over heterogeneity - to summarise and calculate FOIM 
+#'   please use \code{human_equilibrium_vivax_summarise_het()}.
 #'
 #' @param EIR EIR for adults, in units of infectious bites per person per year
 #' @param ft proportion of clinical cases effectively treated
 #' @param p vector of model parameters
 #' @param age vector of age groups, in units of years
-#'
-#' @references Griffin et. al. (2014). Estimates of the changing age-burden of
-#'   Plasmodium falciparum malaria disease in sub-Saharan Africa.
-#'   doi:10.1038/ncomms4136
-#'
-#'   Griffin (2016). Is a reproduction number of one a threshold for Plasmodium
-#'   falciparum malaria elimination? doi:10.1186/s12936-016-1437-9 (see
-#'   supplementary material)
+#' @param h a list of Gauss-Hermite nodes and associated weights, used for
+#'   integrating over heterogeneity in biting. See \code{?gq_normal} for an
+#'   example.
 #'
 #' @export
-
-human_equilibrium_no_het <- function(EIR, ft, p, age) {
+#' 
+human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
+  
+  # This code is based on Michael White code
+  # tailored to malariasimulation parameterisation.
   
   # check inputs
   assert_single_pos(EIR, zero_allowed = FALSE)
   assert_single_bounded(ft)
-  assert_custom_class(p, "model_params")
+  assert_custom_class(p, "list")
   assert_vector_pos(age)
   assert_noduplicates(age)
   assert_increasing(age)
+  
+  
+  ###################################
+  ## 1. ##  Age and heterogeneity  ##
+  ###################################
+  
+  #####################################
+  ## Age demography
+  # some changes required to MW code when using the EQUILIBRIUMAGES or
+  # equivalent input (age) from malariasimulation
   
   # get basic properties
   n_age <- length(age)
   age_days <- age*365
   EIR <- EIR/365
   
-  # produce population age distribution using eta, which is defined as 1/average
-  # age. The population distribution can be envisioned as an exponential
-  # distribution, with mass feeding in from the left due to birth at rate eta,
-  # people ageing with rates defined based on the width of the age groups, and
-  # mass leaking out of all categories with death rate eta. Total birth and
-  # death rates are equal, making the distribution stable.
-  prop <- r <- rep(0, n_age)
-  for (i in 1:n_age) {
-    
-    # r[i] can be thought of as the rate of ageing in this age group, i.e.
-    # 1/r[i] is the duration of this group
-    if (i == n_age) {
-      r[i] <- 0
-    } else {
-      age_width <- age_days[i+1] - age_days[i]
-      r[i] <- 1/age_width
-    }
-    
-    # prop is calculated from the relative flows into vs. out of this age group.
-    # For the first age group the flow in is equal to the birth rate (eta). For
-    # all subsequent age groups the flow in represents ageing from the previous
-    # group. The flow out is always equal to the rate of ageing or death.
-    if (i == 1) {
-      prop[i] <- p$eta/(r[i] + p$eta)
-    } else {
-      prop[i] <- prop[i-1]*r[i-1]/(r[i] + p$eta)
-    }
+  # parameter conversions
+  eta <- 1/p$average_age
+  r_par <- 1/p$rid
+  r_clin <- 1/p$rc
+  rp <- 0.1
+  rd <- 1/p$dd
+  rt <- 1/p$dt
+  ra <- 1/p$da
+  ru <- 1/p$du
+  
+  ## Calculate prop: the proportion within each age bracket
+  ## These methods are slightly different from malariaEquilibrium
+  ## but produce similar estimates
+  ## prop is equivalent to prop in MW equilibrium
+  ## age_days are eqiovalent to age_bounds, without the upper bound
+  ## mean_age is 1/p$eta
+  prop <- rep(NA, n_age)
+  prop[1:(n_age-1)]  <-  exp( - age_days[1:(n_age-1)]*eta) - exp( - age_days[2:n_age]*eta )
+  prop[n_age]        <- 1 - sum( prop[1:(n_age-1)] )
+  
+  ## Calculate rate of aging, 1/duration in age group
+  ## r is equivalent to r in MW eq
+  r <- rep(NA, n_age)
+  for(i in 1:(n_age-1)){
+    r[i] <- ( 1 - sum(prop[1:i]) )/( prop[i]/eta )
   }
+  
+  r[n_age] = 0
+  
+  ###################################
+  ##
+  ## Modification of aging rates for immune functions.
+  ##
+  ## Proportions infected must always accord to the demographic
+  ## constraints when stratified. Immunity is a scalar and can
+  ##(in theory) increase without bound. We must make an adjustment
+  ## due to demography for aging of immunity.
+  ## Provide better explanation.
+  
+  r_imm_age <- rep(NA, n_age)
+  r_imm_age[1:(n_age-1)] <- r[1:(n_age-1)]*(prop[1:(n_age-1)]/prop[2:n_age])
+  r_imm_age[n_age] <- 0
+  
   
   # calculate midpoint of age range. There is no midpoint for the final age
   # group, so use beginning of range instead
-  age_days_midpoint <- c((age_days[-n_age] + age_days[-1])/2, age_days[n_age])
-  
-  # get age category that represents a 20 year old woman
-  age20 <- which.min(abs(age_days_midpoint - (20*365)))
+  ## age_days_midpoint is age_mids in MW
+  age_days_midpoint = c(0.5*( age_days[2:(n_age)] + age_days[1:(n_age-1)]), age_days[n_age])
+  index_MI_20 <- which.min((age_days_midpoint - 20*365)^2)[1]   ## index for the age group of a 20 year old (for maternal immunity)
   
   # calculate relative biting rate for each age group
+  ## p$rho is rho_age
+  ## p$a0 os age_0
+  ## psi is age_bite
   psi <- 1 - p$rho*exp(-age_days_midpoint/p$a0)
+  # Here we factor psi (age-specific biting rate) by omega (age-normalisation)
+  # In malariaEquilibrium this stage is done later in the human_equilibrium function
+  # not in the human_equilibrium_no_het function
+  omega_age <- 1/sum(prop * psi)
+  psi <- omega_age*psi
   
-  # calculate immunity functions and onward infectiousness at equilibrium for
-  # all age groups. See doi:10.1186/s12936-016-1437-9 for details of derivation.
-  IB <- IC <- ID <- IV <- 0
-  IDA <- IBA <- ICA <- IVA <- FOI <- q <- cA <- B <- EPS <- rep(0, n_age)
-  for (i in 1:n_age) {
-    
-    # rate of ageing plus death
-    re <- r[i] + p$eta
-    
-    # update pre-erythrocytic immunity IB
-    eps <- EIR*psi[i]
-    EPS[i] <- eps
-    IB <- (eps/(eps*p$ub + 1) + re*IB)/(1/p$db + re)
-    IBA[i] <- IB
-    
-    # calculate probability of infection from pre-erythrocytic immunity IB via
-    # Hill function
-    b <- p$b0*(p$b1 + (1-p$b1)/(1+(IB/p$IB0)^p$kb))
-    B[i] <- b
-    
-    # calculate force of infection (lambda)
-    FOI[i] <- b*eps
-    
-    # update clinical immunity IC
-    IC <- (FOI[i]/(FOI[i]*p$uc + 1) + re*IC)/(1/p$dc + re)
-    ICA[i] <- IC
-    
-    # update detection immunity ID
-    ID <- (FOI[i]/(FOI[i]*p$ud + 1) + re*ID)/(1/p$dd + re)
-    IDA[i] <- ID
-
-    # update severe immunity IV
-    IV <- (FOI[i]/(FOI[i]*p$uv + 1) + re*IV)/(1/p$dv + re)
-    IVA[i] <- IV
-    
-    # calculate probability that an asymptomatic infection (state A) will be
-    # detected by microscopy
-    fd <- 1 - (1-p$fd0)/(1 + (age_days_midpoint[i]/p$ad0)^p$gd)
-    q[i] <- p$d1 + (1-p$d1)/(1 + (ID/p$ID0)^p$kd*fd)
-    
-    # calculate onward infectiousness to mosquitoes
-    cA[i] <- p$cU + (p$cD-p$cU)*q[i]^p$g_inf
-  }
   
-  # calculate maternal clinical and severe immunity, assumed at birth to be a
-  # proportion of the acquired immunity of a 20 year old
-  IM0 <- ICA[age20]*p$PM
-  IV0 <- IVA[age20]*p$PVM
+  ###########################################################################
+  ## Heterogeneity in mosquito bites
+  # In malariaEquilibrium this stage is done later in the human_equilibrium function
+  # not in the human_equilibrium_no_het function
+  sig_het = sqrt(p$sigma_squared)
+  x_het <- exp(-p$sigma_squared*0.5 + sqrt(p$sigma_squared)*h$nodes)
+  x_age_het <- psi%o%x_het
+  w_age_het <- r%o%h$weights
+  n_het <- length(h$nodes)
   
-  ICM <- rep(0, n_age)
-  IVM <- rep(0, n_age)
-  for (i in 1:n_age) {
-    # maternal clinical and severe immunity decays from birth
-    if (i == n_age) {
-      ICM[i] <- 0
-      IVM[i] <- 0
-    } else {
-      ICM[i] <- IM0 * p$dm / (age_days[i + 1] - age_days[i]) * (exp(-age_days[i] / p$dm) - exp(-age_days[i + 1] / p$dm))
-      IVM[i] <- IV0 * p$dvm / (age_days[i + 1] - age_days[i]) * (exp(-age_days[i] / p$dvm) - exp(-age_days[i + 1] / p$dvm))
+  
+  #################################################
+  ## 2. ##  FoI and proportion with hypnozoites  ##
+  #################################################
+  
+  lam_eq = EIR*p$b*x_age_het
+  HH_eq <- matrix(NA, nrow=n_age, ncol=p$n_het)
+  
+  for(j in 1:n_het){
+    HH_eq[1,j] = ( 1/(p$gammal + r_imm_age[1]) )*( lam_eq[1,j] )
+    
+    for(i in 2:n_age){
+      HH_eq[i,j] = ( 1/(p$gammal + r_imm_age[i]) )*( lam_eq[i,j] + r_imm_age[i]*HH_eq[i-1,j] )
     }
   }
   
-  # calculate probability of acquiring clinical disease as a function of
-  # different immunity types
-  phi <- p$phi0*(p$phi1 + (1-p$phi1)/(1 + ((ICA+ICM)/p$IC0)^p$kc))
-
-  # calculate probability of acquiring severe disease. See expression in
-  # https://doi.org/10.1371/journal.pmed.1002448 supplementary material, page 5.
-  fv <- 1 - (1 - p$fv0)/(1 + (age_days_midpoint/p$av)^p$gammav)
-  theta <- p$theta0*(p$theta1 + (1-p$theta1)/(1 + fv*((IVA+IVM)/p$IV0)^p$kv))
-
-  # calculate equilibrium solution of all model states. Again, see
-  # doi:10.1186/s12936-016-1437-9 for details
-  pos_M <- pos_PCR <- inc <- sev_inc <- rep(0, n_age)
-  S <- T <- P <- D <- A <- U <- rep(0, n_age)
-  for (i in 1:n_age) {
+  lam_H_eq = lam_eq + p$f*HH_eq
+  
+  #################################################
+  ## 3. ##  Equilibrium levels of immunity       ##
+  #################################################
+  
+  A_par_eq <- matrix(NA, nrow=n_age, ncol=n_het)
+  A_clin_eq <- matrix(NA, nrow=n_age, ncol=n_het)
+  
+  for(j in 1:n_het){
+    A_par_eq[1,j] = ( 1/(r_par + r_imm_age[1]) )*( lam_H_eq[1,j]/(lam_H_eq[1,j]*p$ud+1) )
     
-    # rate of ageing plus death
-    re <- r[i] + p$eta
-    
-    # calculate beta values
-    betaT <- p$rT + re
-    betaD <- p$rD + re
-    betaA <- FOI[i]*phi[i] + p$rA + re
-    betaU <- FOI[i] + p$rU + re
-    betaP <- p$rP + re
-    
-    # calculate a and b values
-    aT <- ft*phi[i]*FOI[i]/betaT
-    aP <- p$rT*aT/betaP
-    aD <- (1-ft)*phi[i]*FOI[i]/betaD
-    if (i == 1) {
-      bT <- bD <- bP <- 0
-    } else {
-      bT <- r[i-1]*T[i-1]/betaT
-      bD <- r[i-1]*D[i-1]/betaD
-      bP <- p$rT*bT + r[i-1]*P[i-1]/betaP
+    for(i in 2:n_age){
+      A_par_eq[i,j] = ( 1/(r_par + r_imm_age[i]) )*( lam_H_eq[i,j]/(lam_H_eq[i,j]*p$ud+1) + r_imm_age[i]*A_par_eq[i-1,j] )
     }
-    
-    # calculate Y, which is the sum of all non-diseased states
-    Y <- (prop[i] - (bT + bD + bP))/(1 + aT + aD + aP)
-    
-    # calculate final {T,D,P} solution
-    T[i] <- aT*Y + bT
-    D[i] <- aD*Y + bD
-    P[i] <- aP*Y + bP
-    
-    # calculate final {A, U, S} solution
-    if (i == 1) {
-      rA <- rU <- 0
-    } else {
-      rA <- r[i-1]*A[i-1]
-      rU <- r[i-1]*U[i-1]
-    }
-    A[i] <- (rA + (1-phi[i])*Y*FOI[i] + p$rD*D[i])/(betaA + (1-phi[i])*FOI[i])
-    U[i] <- (rU + p$rA*A[i])/betaU
-    S[i] <- Y - A[i] - U[i]
-    
-    # calculate proportion detectable by mocroscopy and PCR
-    pos_M[i] <- D[i] + T[i] + A[i]*q[i]
-    pos_PCR[i] <- D[i] + T[i] + A[i]*(q[i]^p$aA) + U[i]*(q[i]^p$aU)
-    
-    # calculate clinical incidence
-    inc[i] <- Y*FOI[i]*phi[i]
-    sev_inc[i] <- Y*FOI[i]*theta[i]
   }
   
-  # calculate mean infectivity
-  inf <- p$cD*D + p$cT*T + cA*A + p$cU*U
+  for(j in 1:n_het){
+    A_clin_eq[1,j] = ( 1/(r_clin + r_imm_age[1]) )*( lam_H_eq[1,j]/(lam_H_eq[1,j]*p$uc+1) )
+    
+    for(i in 2:n_age){
+      A_clin_eq[i,j] = ( 1/(r_clin + r_imm_age[i]) )*( lam_H_eq[i,j]/(lam_H_eq[i,j]*p$uc+1) + r_imm_age[i]*A_clin_eq[i-1,j] )
+    }
+  }
   
-  # return matrix
-  ret <- cbind(
-     age = age,
-     S = S,
-     T = T,
-     D = D,
-     A = A,
-     U = U,
-     P = P,
-     inf = inf,
-     prop = prop,
-     psi = psi,
-     pos_M = pos_M,
-     pos_PCR = pos_PCR,
-     inc = inc,
-     sev_inc = sev_inc,
-     ICA = ICA,
-     ICM = ICM,
-     IVA = IVA,
-     IVM = IVM,
-     ID = IDA,
-     IB = IBA,
-     B = B,
-     FOI = FOI,
-     phi = phi,
-     EPS = EPS,
-     cA = cA,
-     r = r
-  )
-  return(ret)
+  A_par_MI_eq  = (p$pcm*exp(-age_days_midpoint/p$rm) )%o%A_par_eq[index_MI_20,]
+  A_clin_MI_eq = (p$pcm*exp(-age_days_midpoint/p$rm) )%o%A_clin_eq[index_MI_20,]
+  
+  
+  #######################################
+  ## Effects of immune functions
+  
+  r_PCR_eq  = 1/(p$dpcr_min + (p$dpcr_max - p$dpcr_min)/(1 + ((A_par_eq + A_par_MI_eq)/p$apcr50)^p$kpcr))
+  phi_LM_eq = p$philm_min + (p$philm_max-p$philm_min)/(1 + ((A_par_eq + A_par_MI_eq)/p$alm50)^p$klm)
+  
+  phi_D_eq  = p$phi0*p$phi1  + (p$phi0 - p$phi0*p$phi1)/(1 + ((A_clin_eq + A_clin_MI_eq)/p$ic0)^p$kc)
+  
+  
+  ##################################################
+  ## 4. ##  Function for equilibrium solution     ##
+  ##    ##  via linear algebra                    ##
+  ##################################################
+  
+  MM_ij <- function(i, j)
+  {
+    MM <- matrix(0, nrow=6, ncol=6)
+    
+    MM[1,1] = - lam_H_eq[i,j] - eta - r[i]
+    MM[1,2] = + r_PCR_eq[i,j]
+    MM[1,6] = + rp
+    
+    MM[2,1] = + lam_H_eq[i,j]*(1.0-phi_LM_eq[i,j])
+    MM[2,2] = + lam_H_eq[i,j]*(1.0-phi_LM_eq[i,j]) - lam_H_eq[i,j] - r_PCR_eq[i,j] - eta - r[i]
+    MM[2,3] = + ra
+    
+    MM[3,1] = + lam_H_eq[i,j]*phi_LM_eq[i,j]*(1.0-phi_D_eq[i,j])
+    MM[3,2] = + lam_H_eq[i,j]*phi_LM_eq[i,j]*(1.0-phi_D_eq[i,j])
+    MM[3,3] = + lam_H_eq[i,j]*(1.0-phi_D_eq[i,j]) - lam_H_eq[i,j] - ra - eta - r[i]
+    MM[3,4] = + rd
+    
+    MM[4,1] = + lam_H_eq[i,j]*phi_LM_eq[i,j]*phi_D_eq[i,j]*(1-ft)
+    MM[4,2] = + lam_H_eq[i,j]*phi_LM_eq[i,j]*phi_D_eq[i,j]*(1-ft)
+    MM[4,3] = + lam_H_eq[i,j]*phi_D_eq[i,j]*(1-ft)
+    MM[4,4] = - rd - eta - r[i]
+    
+    MM[5,1] = + lam_H_eq[i,j]*phi_LM_eq[i,j]*phi_D_eq[i,j]*ft
+    MM[5,2] = + lam_H_eq[i,j]*phi_LM_eq[i,j]*phi_D_eq[i,j]*ft
+    MM[5,3] = + lam_H_eq[i,j]*phi_D_eq[i,j]*ft
+    MM[5,5] = - rt - eta - r[i]
+    
+    MM[6,5] = + rt
+    MM[6,6] = - rp - eta - r[i]
+    
+    MM
+  }
+  
+  
+  #################################################
+  ## 5. ##  Solve for equilibrium solution       ##
+  #################################################
+  
+  ###################################################
+  ## Objects for storing equilibrium
+  
+  S_eq     <- matrix(NA, nrow=n_age, ncol=n_het)
+  I_PCR_eq <- matrix(NA, nrow=n_age, ncol=n_het)
+  I_LM_eq  <- matrix(NA, nrow=n_age, ncol=n_het)
+  D_eq     <- matrix(NA, nrow=n_age, ncol=n_het)
+  T_eq     <- matrix(NA, nrow=n_age, ncol=n_het)
+  P_eq     <- matrix(NA, nrow=n_age, ncol=n_het)
+  
+  
+  for(j in 1:n_het){
+    
+    MM <- MM_ij(1,j)
+    
+    BB    = rep(0, 6)
+    BB[1] = - h$weights[j]*eta
+    
+    XX = solve(MM)%*%BB
+    
+    S_eq[1,j]     = XX[1]
+    I_PCR_eq[1,j] = XX[2]
+    I_LM_eq[1,j]  = XX[3]
+    D_eq[1,j]     = XX[4]
+    T_eq[1,j]     = XX[5]
+    P_eq[1,j]     = XX[6]
+    
+    
+    for(i in 2:n_age)
+    {
+      MM <- MM_ij( i, j )
+      
+      BB = - r[i-1]*XX
+      
+      XX = solve(MM)%*%BB
+      
+      S_eq[i,j]     = XX[1]
+      I_PCR_eq[i,j] = XX[2]
+      I_LM_eq[i,j]  = XX[3]
+      D_eq[i,j]     = XX[4]
+      T_eq[i,j]     = XX[5]
+      P_eq[i,j]     = XX[6]
+    }
+  }
+  
+  
+  # Mean infectivity
+  inf <- p$cd*D_eq + p$ct*T_eq + p$ca*I_LM_eq + p$cu*I_PCR_eq
+  
+  # calculate proportion detectable by mocroscopy and PCR
+  # These previous had more complex equations to calculate A_eq for example, involving q and an aA parameter...?
+  pos_M <- D_eq + T_eq + I_LM_eq
+  pos_PCR <- D_eq + T_eq + I_LM_eq + I_PCR_eq
+  
+  # incidence
+  inc <- (S_eq + I_LM_eq + I_PCR_eq) * lam_H_eq
+  asym_inc <- inc * phi_LM_eq
+  clin_inc <- asym_inc * phi_D_eq
+  
+  # ??? I'm not sure what EPS stands for...? (If someone could tell me, please let me know!)
+  EPS <- psi*EIR
+  
+  # return matrix: Consider outputs?
+  ret <- lapply(X = 1:n_het, FUN = function(j){
+    cbind(
+      age = age,
+      HH = HH_eq[,j],
+      S = S_eq[,j],
+      T = T_eq[,j],
+      D = D_eq[,j],
+      A = I_LM_eq[,j],
+      U = I_PCR_eq[,j],
+      P = P_eq[,j],
+      inf = inf[,j],
+      prop = prop,
+      psi = psi,
+      pos_M = pos_M[,j],
+      pos_PCR = pos_PCR[,j],
+      inc = inc[,j],
+      asym_inc = asym_inc[,j],
+      clin_inc = clin_inc[,j],
+      ICA = A_clin_eq[,j],
+      ICM = A_clin_MI_eq[,j],
+      ID = A_par_eq[,j],
+      IDM = A_par_MI_eq[,j],
+      FOI = lam_eq[,j],
+      FOIH = lam_H_eq[,j],
+      phi = phi_D_eq[,j],
+      phi_lm = phi_LM_eq[,j],
+      rpcr = r_PCR_eq[,j],
+      EPS = EPS,
+      r = r
+    )
+  })
+  return(list(ret = ret, x_het = x_het, w_het = h$weights))
 }
 
+
 #------------------------------------------------
-#' @title Equilibrium solution
+#' @title Vivax equilibrium solution
 #'
-#' @description Returns the equilibrium states for the model of Griffin et al.
-#'   (2014). A derivation of the equilibrium solutions can be found in Griffin
-#'   (2016). Integrates over the distribution of biting heterogeneity using
-#'   Gaussian quadrature.
+#' @description Returns the vivax equilibrium states for the model of White et al.,
+#'   (2018).
 #'
-#' @inheritParams human_equilibrium_no_het
-#' @param h a list of Gauss-Hermite nodes and associated weights, used for
-#'   integrating over heterogeneity in biting. See \code{?gq_normal} for an
-#'   example.
-#'
-#' @references Griffin et. al. (2014). Estimates of the changing age-burden of
-#'   Plasmodium falciparum malaria disease in sub-Saharan Africa.
-#'   doi:10.1038/ncomms4136
-#'
-#'   Griffin (2016). Is a reproduction number of one a threshold for Plasmodium
-#'   falciparum malaria elimination? doi:10.1186/s12936-016-1437-9 (see
-#'   supplementary material)
+#' @param eq the equilibrium solution calcualted by human_equilibrium_vivax_full_het
+#' @param p a parameter set generated by get_parameters() and complementary functions
+#' in malariasimulation
 #'
 #' @export
 
-human_equilibrium <- function(EIR, ft, p, age, h = gq_normal(10)) {
+human_equilibrium_vivax_summarise <- function(eq, p){
   
-  # check inputs
-  assert_single_pos(EIR, zero_allowed = FALSE)
-  assert_single_bounded(ft)
-  assert_custom_class(p, "model_params")
-  assert_vector_pos(age)
-  assert_noduplicates(age)
-  assert_increasing(age)
-  assert_list(h)
-  assert_in(c("nodes", "weights"), names(h))
-  assert_same_length(h$nodes, h$weights)
-  assert_numeric(h$nodes, h$weights)
+  #######################################################
+  ## 1. ##  Age stratify                               ##
+  #######################################################
   
-  # get basic properties and initialise
-  nh <- length(h$nodes)
-  FOIM <- 0 		# overall force of infection on mosquitoes, weighted by onward biting rates
+  x_het <- eq$x_het
+  w_het <- eq$w_het
+  eq <- eq$ret 
   
-  # loop through all Gaussian quadrature nodes
-  for (j in 1:nh) {
-    zeta <- exp(-p$s2*0.5 + sqrt(p$s2)*h$nodes[j])
-    Ej <- human_equilibrium_no_het(EIR = EIR*zeta, ft = ft, p = p, age = age)
-    if (j == 1) {
-      E <- Ej*h$weights[j]
-    } else {
-      E <- E + Ej*h$weights[j]
-    }
-    FOIM <- FOIM + sum(Ej[,"inf"]*Ej[,"psi"])*h$weights[j]*zeta
-  }
+  ## age
+  age <- eq[[1]][,1]
+  ## sum states
+  states <- Reduce("+", lapply(eq, function(x){x[,c("S","T","D","A","U","P")]}))
+  ## Weight hypnozoites and immunities
+  hh_imm <- Reduce("+",
+                   lapply(1:length(w_het),function(x){eq[[x]][,c("HH","ICA","ICM","ID","IDM")] * w_het[x]}))
   
-  # calculate overall force of infection on mosquitoes
-  omega <- 1 - p$rho*p$eta/(p$eta + 1/p$a0)
-  alpha <- p$f*p$Q0
-  FOIM <- FOIM*alpha/omega
+  #######################################################
+  ## 2. ##  FOIM                                       ##
+  #######################################################
   
-  # return as list
-  return(list(
-    states = E,
-    FOIM = FOIM
-  ))
+  # FOIM is foim in MW equilibrium
+  # zeta (heteogeneity) and omega (normalising over age) are taken care of within the equilibrium solution
+  # the only thing that remains is to multiply by alpha: rate at which a mosquito takes a blood meal on humans
+  weighted_infectivity <- sum(colSums(states[,c("T","D","A","U")]) * unlist(p[c("ct","cd","ca","cu")]))
+  alpha <- p$blood_meal_rates * p$Q0
+  foim <- weighted_infectivity * alpha
+  
+  eq_summary <- cbind(age, states, hh_imm)
+  
+  return(list(states = eq_summary, FOIM = foim))
 }
