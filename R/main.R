@@ -18,7 +18,7 @@
 #'
 #' @export
 #' 
-human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
+human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   
   # This code is based on Michael White code
   # tailored to malariasimulation parameterisation.
@@ -30,7 +30,6 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
   assert_vector_pos(age)
   assert_noduplicates(age)
   assert_increasing(age)
-  
   
   ###################################
   ## 1. ##  Age and heterogeneity  ##
@@ -89,7 +88,6 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
   r_imm_age[1:(n_age-1)] <- r[1:(n_age-1)]*(prop[1:(n_age-1)]/prop[2:n_age])
   r_imm_age[n_age] <- 0
   
-  
   # calculate midpoint of age range. There is no midpoint for the final age
   # group, so use beginning of range instead
   ## age_days_midpoint is age_mids in MW
@@ -107,25 +105,30 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
   omega_age <- 1/sum(prop * psi)
   psi <- omega_age*psi
   
-  
   ###########################################################################
   ## Heterogeneity in mosquito bites
   # In malariaEquilibrium this stage is done later in the human_equilibrium function
   # not in the human_equilibrium_no_het function
-  sig_het = sqrt(p$sigma_squared)
-  x_het <- exp(-p$sigma_squared*0.5 + sqrt(p$sigma_squared)*h$nodes)
-  x_age_het <- psi%o%x_het
-  w_age_het <- r%o%h$weights
-  n_het <- length(h$nodes)
+  if(isTRUE(p$enable_heterogeneity)){
+    sig_het = sqrt(p$sigma_squared)
+    x_het <- exp(-p$sigma_squared*0.5 + sqrt(p$sigma_squared)*h$nodes)
+    w_het <- h$weights
+    x_age_het <- psi%o%x_het
+    w_age_het <- r%o%w_het
+    n_het <- length(h$nodes)
+  } else {
+    x_age_het <- psi
+    w_het <- 1
+    n_het <- 1
+  }
   
   
   #################################################
   ## 2. ##  FoI and proportion with hypnozoites  ##
   #################################################
   
-  lam_eq = EIR*p$b*x_age_het
-  HH_eq <- matrix(NA, nrow=n_age, ncol=p$n_het)
-  
+  lam_eq = as.matrix(EIR*p$b*x_age_het)
+  HH_eq <- matrix(NA, nrow=n_age, ncol=n_het)
   for(j in 1:n_het){
     HH_eq[1,j] = ( 1/(p$gammal + r_imm_age[1]) )*( lam_eq[1,j] )
     
@@ -133,7 +136,7 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
       HH_eq[i,j] = ( 1/(p$gammal + r_imm_age[i]) )*( lam_eq[i,j] + r_imm_age[i]*HH_eq[i-1,j] )
     }
   }
-  
+
   lam_H_eq = lam_eq + p$f*HH_eq
   
   #################################################
@@ -225,13 +228,13 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
   T_eq     <- matrix(NA, nrow=n_age, ncol=n_het)
   P_eq     <- matrix(NA, nrow=n_age, ncol=n_het)
   
-  
   for(j in 1:n_het){
+    
     
     MM <- MM_ij(1,j)
     
     BB    = rep(0, 6)
-    BB[1] = - h$weights[j]*eta
+    BB[1] = - w_het[j]*eta
     
     XX = solve(MM)%*%BB
     
@@ -259,7 +262,6 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
       P_eq[i,j]     = XX[6]
     }
   }
-  
   
   # Mean infectivity
   inf <- p$cd*D_eq + p$ct*T_eq + p$ca*I_LM_eq + p$cu*I_PCR_eq
@@ -309,7 +311,14 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h) {
       r = r
     )
   })
-  return(list(ret = ret, x_het = x_het, w_het = h$weights))
+
+  if(isTRUE(p$enable_heterogeneity)){
+    return(list(ret = ret, x_het = x_het, w_het = w_het))
+    
+    } else {
+      return(list(ret = ret))
+    }
+  
 }
 
 
@@ -330,18 +339,25 @@ human_equilibrium_vivax_summarise <- function(eq, p){
   #######################################################
   ## 1. ##  Age stratify                               ##
   #######################################################
-  
-  x_het <- eq$x_het
-  w_het <- eq$w_het
-  eq <- eq$ret 
-  
-  ## age
-  age <- eq[[1]][,1]
+
   ## sum states
-  states <- Reduce("+", lapply(eq, function(x){x[,c("S","T","D","A","U","P")]}))
-  ## Weight hypnozoites and immunities
-  hh_imm <- Reduce("+",
-                   lapply(1:length(w_het),function(x){eq[[x]][,c("HH","ICA","ICM","ID","IDM")] * w_het[x]}))
+  states <- Reduce("+", lapply(eq$ret, function(x){x[,c("S","T","D","A","U","P","inf")]}))
+  ## age
+  age <- eq$ret[[1]][,1]
+  
+  if(isTRUE(p$enable_heterogeneity)){
+    x_het <- eq$x_het
+    w_het <- eq$w_het
+    
+    ## Weight hypnozoites and immunities
+    hh_imm <- Reduce("+",
+                     lapply(1:length(w_het),function(x){eq$ret[[x]][,c("HH","ICA","ICM","ID","IDM","phi","prop","FOI","FOIH")] * w_het[x]}))
+    # foim <- sum(unlist(lapply(1:length(w_het),function(x){sum(eq$ret[[x]][,c("inf")] * eq$ret[[x]][,c("psi")]) * w_het[x] * x_het[x]})))
+    foim <- sum(unlist(lapply(1:length(w_het),function(x){sum(eq$ret[[x]][,c("inf")] * eq$ret[[x]][,c("psi")]) * x_het[x]})))
+  } else {
+    hh_imm <- eq$ret[[1]][,c("HH","ICA","ICM","ID","IDM","phi","prop")]
+    foim <- sum(eq$ret[[1]][,c("inf")] * eq$ret[[1]][,c("psi")])
+  }
   
   #######################################################
   ## 2. ##  FOIM                                       ##
@@ -350,10 +366,30 @@ human_equilibrium_vivax_summarise <- function(eq, p){
   # FOIM is foim in MW equilibrium
   # zeta (heteogeneity) and omega (normalising over age) are taken care of within the equilibrium solution
   # the only thing that remains is to multiply by alpha: rate at which a mosquito takes a blood meal on humans
-  weighted_infectivity <- sum(colSums(states[,c("T","D","A","U")]) * unlist(p[c("ct","cd","ca","cu")]))
-  alpha <- p$blood_meal_rates * p$Q0
-  foim <- weighted_infectivity * alpha
   
+  ## Get ages
+  # a <- parameters$
+  
+  ## get psi
+  # psi <- states[,"psi"]
+  ## get zeta
+  
+  ## get prob bitten
+  # prob_bitten <- 1
+  ## get .pi?
+  ## get Q0
+  # p$Q0
+  ## get W
+  ## get Z
+  ## Get f
+  # p$blood_meal_rates
+  
+  # hh_imm[,"psi"]
+  
+  # weighted_infectivity <- sum(colSums(states[,c("T","D","A","U")]) * hh_imm[,"psi"] * c(unlist(p[c("ct","cd","ca","cu")])))
+  alpha <- p$blood_meal_rates * p$Q0
+  foim <- foim * alpha
+
   eq_summary <- cbind(age, states, hh_imm)
   
   return(list(states = eq_summary, FOIM = foim))
