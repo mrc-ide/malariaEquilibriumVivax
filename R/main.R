@@ -7,6 +7,9 @@
 #'   This function does account for biting heterogeneity and return the 
 #'   equilibria listed over heterogeneity - to summarise and calculate FOIM 
 #'   please use \code{human_equilibrium_vivax_summarise_het()}.
+#'   
+#'   This version uses Michael White's code as a template. I've removed the omega 
+#'   standardisation for consistency with other equiilbria.
 #'
 #' @param EIR EIR for adults, in units of infectious bites per person per year
 #' @param ft proportion of clinical cases effectively treated
@@ -103,7 +106,10 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   # In malariaEquilibrium this stage is done later in the human_equilibrium function
   # not in the human_equilibrium_no_het function
   omega_age <- 1/sum(prop * psi)
-  psi <- omega_age*psi
+  
+  ### Nora's code:
+  # psi <- omega_age*psi
+  ###
   
   ###########################################################################
   ## Heterogeneity in mosquito bites
@@ -114,7 +120,7 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
     x_het <- exp(-p$sigma_squared*0.5 + sqrt(p$sigma_squared)*h$nodes)
     w_het <- h$weights
     x_age_het <- psi%o%x_het
-    w_age_het <- r%o%w_het
+    w_age_het <- prop%o%w_het
     n_het <- length(h$nodes)
   } else {
     x_age_het <- psi
@@ -128,6 +134,9 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   #################################################
   
   lam_eq = as.matrix(EIR*p$b*x_age_het)
+  ###### Nora's code:
+  # lam_eq = as.matrix(EIR*p$b*x_age_het)/sum(x_het*w_het)
+  ######
   HH_eq <- matrix(NA, nrow=n_age, ncol=n_het)
   for(j in 1:n_het){
     HH_eq[1,j] = ( 1/(p$gammal + r_imm_age[1]) )*( lam_eq[1,j] )
@@ -136,7 +145,13 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
       HH_eq[i,j] = ( 1/(p$gammal + r_imm_age[i]) )*( lam_eq[i,j] + r_imm_age[i]*HH_eq[i-1,j] )
     }
   }
-
+  
+  #######################
+  # Should we cap the batch number?
+  # HH_eq[HH_eq>30] <- 30
+  #######################
+  
+  # Is this equivalent to modelling infections as two processes?
   lam_H_eq = lam_eq + p$f*HH_eq
   
   #################################################
@@ -165,13 +180,11 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   A_par_MI_eq  = (p$pcm*exp(-age_days_midpoint/p$rm) )%o%A_par_eq[index_MI_20,]
   A_clin_MI_eq = (p$pcm*exp(-age_days_midpoint/p$rm) )%o%A_clin_eq[index_MI_20,]
   
-  
   #######################################
   ## Effects of immune functions
   
   r_PCR_eq  = 1/(p$dpcr_min + (p$dpcr_max - p$dpcr_min)/(1 + ((A_par_eq + A_par_MI_eq)/p$apcr50)^p$kpcr))
   phi_LM_eq = p$philm_min + (p$philm_max-p$philm_min)/(1 + ((A_par_eq + A_par_MI_eq)/p$alm50)^p$klm)
-  
   phi_D_eq  = p$phi0*p$phi1  + (p$phi0 - p$phi0*p$phi1)/(1 + ((A_clin_eq + A_clin_MI_eq)/p$ic0)^p$kc)
   
   
@@ -183,7 +196,7 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   MM_ij <- function(i, j)
   {
     MM <- matrix(0, nrow=6, ncol=6)
-    
+
     MM[1,1] = - lam_H_eq[i,j] - eta - r[i]
     MM[1,2] = + r_PCR_eq[i,j]
     MM[1,6] = + rp
@@ -262,7 +275,7 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
       P_eq[i,j]     = XX[6]
     }
   }
-  
+
   # Mean infectivity
   inf <- p$cd*D_eq + p$ct*T_eq + p$ca*I_LM_eq + p$cu*I_PCR_eq
   
@@ -278,6 +291,12 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   
   # ??? I'm not sure what EPS stands for...? (If someone could tell me, please let me know!)
   EPS <- psi*EIR
+  
+  
+  ######################################
+  ## Add back in omega to calculate FOIM
+  psi <- omega_age*psi
+  ######################################
   
   # return matrix: Consider outputs?
   ret <- lapply(X = 1:n_het, FUN = function(j){
