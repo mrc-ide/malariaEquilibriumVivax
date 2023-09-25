@@ -314,12 +314,12 @@ human_equilibrium <- function(EIR, ft, p, age, h = gq_normal(10)) {
     } else {
       E <- E + Ej*h$weights[j]
     }
-    
     FOIM <- FOIM + sum(Ej[,"inf"]*Ej[,"psi"])*h$weights[j]*zeta
   }
   
   # calculate overall force of infection on mosquitoes
-  omega <- 1 - p$rho*p$eta/(p$eta + 1/p$a0)
+  eta <- 1/p$average_age
+  omega <- 1 - p$rho*eta/(eta + 1/p$a0)
   alpha <- p$f*p$Q0
   FOIM <- FOIM*alpha/omega
   
