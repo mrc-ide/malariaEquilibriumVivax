@@ -4,7 +4,7 @@
 \alias{human_equilibrium_vivax_full_het}
 \title{Vivax equilibrium solution with biting heterogeneity}
 \usage{
-human_equilibrium_vivax_full_het(EIR, ft, p, age, h)
+human_equilibrium_vivax_full_het(EIR, ft, p, age, h = NULL)
 }
 \arguments{
 \item{EIR}{EIR for adults, in units of infectious bites per person per year}
@@ -26,4 +26,7 @@ Returns the vivax equilibrium states for the model of White et al.,
   This function does account for biting heterogeneity and return the 
   equilibria listed over heterogeneity - to summarise and calculate FOIM 
   please use \code{human_equilibrium_vivax_summarise_het()}.
+  
+  This version uses Michael White's code as a template. I've removed the omega 
+  standardisation for consistency with other equiilbria.
 }
