@@ -306,7 +306,7 @@ human_equilibrium <- function(EIR, ft, p, age, h = gq_normal(10)) {
   
   # loop through all Gaussian quadrature nodes
   for (j in 1:nh) {
-    zeta <- exp(-p$s2*0.5 + sqrt(p$s2)*h$nodes[j])
+    zeta <- exp(-p$sigma_squared2*0.5 + sqrt(p$sigma_squared)*h$nodes[j])
     Ej <- human_equilibrium_no_het(EIR = EIR*zeta, ft = ft, p = p, age = age)
     
     if (j == 1) {
