@@ -224,9 +224,6 @@ human_equilibrium_no_het <- function(EIR, ft, p, age) {
       
     }
   
-  
-  
-
   # calculate mean infectivity
   inf <- p$cd*D + p$ct*T + p$ca*A + p$cu*U
 
@@ -320,7 +317,7 @@ human_equilibrium <- function(EIR, ft, p, age, h = gq_normal(10)) {
   # calculate overall force of infection on mosquitoes
   eta <- 1/p$average_age
   omega <- 1 - p$rho*eta/(eta + 1/p$a0)
-  alpha <- p$f*p$Q0
+  alpha <- p$blood_meal_rates*p$Q0
   FOIM <- FOIM*alpha/omega
   
   # return as list

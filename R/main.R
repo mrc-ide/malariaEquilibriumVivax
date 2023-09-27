@@ -295,7 +295,7 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   
   ######################################
   ## Add back in omega to calculate FOIM
-  psi <- omega_age*psi
+  # psi <- omega_age*psi
   ######################################
   
   # return matrix: Consider outputs?
@@ -406,9 +406,10 @@ human_equilibrium_vivax_summarise <- function(eq, p){
   # hh_imm[,"psi"]
   
   # weighted_infectivity <- sum(colSums(states[,c("T","D","A","U")]) * hh_imm[,"psi"] * c(unlist(p[c("ct","cd","ca","cu")])))
+  eta <- 1/p$average_age
+  omega <- 1 - p$rho*eta/(eta + 1/p$a0)
   alpha <- p$blood_meal_rates * p$Q0
-  foim <- foim * alpha
-
+  foim <- foim * alpha / omega
   eq_summary <- cbind(age, states, hh_imm)
   
   return(list(states = eq_summary, FOIM = foim))
