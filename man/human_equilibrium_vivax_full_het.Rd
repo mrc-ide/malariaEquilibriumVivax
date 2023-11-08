@@ -4,7 +4,16 @@
 \alias{human_equilibrium_vivax_full_het}
 \title{Vivax equilibrium solution with biting heterogeneity}
 \usage{
-human_equilibrium_vivax_full_het(EIR, ft, p, age, h = NULL)
+human_equilibrium_vivax_full_het(
+  EIR,
+  ft,
+  p,
+  age,
+  h = NULL,
+  no_omega = NULL,
+  use_simple_ages = NULL,
+  K_max = 10
+)
 }
 \arguments{
 \item{EIR}{EIR for adults, in units of infectious bites per person per year}
