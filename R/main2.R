@@ -24,7 +24,6 @@
 #' @export
 
 human_equilibrium_no_het <- function(EIR, ft, p, age) {
-  
   # check inputs
   assert_single_pos(EIR, zero_allowed = FALSE)
   assert_single_bounded(ft)
@@ -78,7 +77,8 @@ human_equilibrium_no_het <- function(EIR, ft, p, age) {
   
   # calculate relative biting rate for each age group
   psi <- 1 - p$rho*exp(-age_days_midpoint/p$a0)
-  
+  omega <- 1 - p$rho*p$eta/(p$eta + 1/p$a0)
+
   # calculate immunity functions and onward infectiousness at equilibrium for
   # all age groups. See doi:10.1186/s12936-016-1437-9 for details of derivation.
   IC <- ID <- Hyp <- 0
@@ -88,12 +88,11 @@ human_equilibrium_no_het <- function(EIR, ft, p, age) {
     # rate of ageing plus death
     re <- r[i] + p$eta
     
-    # update pre-erythrocytic immunity IB
+    # 
     eps <- EIR*psi[i]
     EPS[i] <- eps
     
-    # calculate probability of infection from pre-erythrocytic immunity IB via
-    # Hill function
+    # calculate probability of infection 
     b <- p$b
 
     # calculate force of infection (lambda)
@@ -101,6 +100,7 @@ human_equilibrium_no_het <- function(EIR, ft, p, age) {
     
     # calculate hypnozoite batch number
     Hyp <- (FOI[i] + re * Hyp) / (p$gammal + re)
+    Hyp <- ifelse(Hyp>10, 10, Hyp)
     HH[i] <- Hyp
     
     # calculate force of infection with hypnozoites (lambda_H)
@@ -221,7 +221,6 @@ human_equilibrium_no_het <- function(EIR, ft, p, age) {
       inc[i] <- Y[i]*FOIH[i]
       pat_inc[i] <- Y[i]*FOIH[i]*phi_patent[i]
       clin_inc[i] <- Y[i]*FOIH[i]*phi_patent[i]*phi_clin[i]
-      
     }
   
   # calculate mean infectivity
@@ -317,8 +316,29 @@ human_equilibrium <- function(EIR, ft, p, age, h = gq_normal(10)) {
   # calculate overall force of infection on mosquitoes
   eta <- 1/p$average_age
   omega <- 1 - p$rho*eta/(eta + 1/p$a0)
+  # omega <- 1
   alpha <- p$blood_meal_rates*p$Q0
   FOIM <- FOIM*alpha/omega
+  browser()
+  
+  # 1000*sum(E[,"inc"] * E[,"FOI"] / E[,"FOIH"])
+  # 1000*sum(E[,"inc"] * (E[,"FOIH"]-E[,"FOI"]) / E[,"FOIH"])
+  # 
+  # 1000*sum(E[,"inc"])
+  # 1000*sum(E[,"pat_inc"])
+  # 1000*sum(E[,"clin_inc"])
+  # 
+  # sum(E[,"phi_patent"]*E[,"prop"])
+  # sum(E[,"phi_clin"]*E[,"prop"])
+  # 
+  # 1000*sum(E[,"HH"]*E[,"prop"])*p$f
+  
+  round(colSums(E[,c("S","D","A","U","T","P")]),3)
+  
+  round(sum(E[,"HH"]*E[,"prop"]),3)
+  round(sum(E[,"ICA"]*E[,"prop"]),1)
+  round(sum(E[,"ID"]*E[,"prop"]),1)
+  
   
   # return as list
   return(list(

@@ -21,7 +21,7 @@
 #'
 #' @export
 #' 
-human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
+human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL, no_omega = NULL, use_simple_ages = NULL, K_max = 10) {
   
   # This code is based on Michael White code
   # tailored to malariasimulation parameterisation.
@@ -58,38 +58,66 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   ra <- 1/p$da
   ru <- 1/p$du
   
-  ## Calculate prop: the proportion within each age bracket
-  ## These methods are slightly different from malariaEquilibrium
-  ## but produce similar estimates
-  ## prop is equivalent to prop in MW equilibrium
-  ## age_days are eqiovalent to age_bounds, without the upper bound
-  ## mean_age is 1/p$eta
-  prop <- rep(NA, n_age)
-  prop[1:(n_age-1)]  <-  exp( - age_days[1:(n_age-1)]*eta) - exp( - age_days[2:n_age]*eta )
-  prop[n_age]        <- 1 - sum( prop[1:(n_age-1)] )
   
-  ## Calculate rate of aging, 1/duration in age group
-  ## r is equivalent to r in MW eq
-  r <- rep(NA, n_age)
-  for(i in 1:(n_age-1)){
-    r[i] <- ( 1 - sum(prop[1:i]) )/( prop[i]/eta )
+  if(is.null(use_simple_ages)){
+    ## Calculate prop: the proportion within each age bracket
+    ## These methods are slightly different from malariaEquilibrium
+    ## but produce similar estimates
+    ## prop is equivalent to prop in MW equilibrium
+    ## age_days are eqiovalent to age_bounds, without the upper bound
+    ## mean_age is 1/p$eta
+    prop <- rep(NA, n_age)
+    prop[1:(n_age-1)]  <-  exp( - age_days[1:(n_age-1)]*eta) - exp( - age_days[2:n_age]*eta )
+    prop[n_age]        <- 1 - sum( prop[1:(n_age-1)] )
+    
+    ## Calculate rate of aging, 1/duration in age group
+    ## r is equivalent to r in MW eq
+    r <- rep(NA, n_age)
+    for(i in 1:(n_age-1)){
+      r[i] <- ( 1 - sum(prop[1:i]) )/( prop[i]/eta )
+    }
+    
+    r[n_age] = 0
+    
+    ###################################
+    ##
+    ## Modification of aging rates for immune functions.
+    ##
+    ## Proportions infected must always accord to the demographic
+    ## constraints when stratified. Immunity is a scalar and can
+    ##(in theory) increase without bound. We must make an adjustment
+    ## due to demography for aging of immunity.
+    ## Provide better explanation.
+    
+    r_imm_age <- rep(NA, n_age)
+    r_imm_age[1:(n_age-1)] <- r[1:(n_age-1)]*(prop[1:(n_age-1)]/prop[2:n_age])
+    r_imm_age[n_age] <- 0
+    
+  } else {
+    prop <- r <- rep(0, n_age)
+    for (i in 1:n_age) {
+      
+      # r[i] can be thought of as the rate of ageing in this age group, i.e.
+      # 1/r[i] is the duration of this group
+      if (i == n_age) {
+        r[i] <- 0
+      } else {
+        age_width <- age_days[i+1] - age_days[i]
+        r[i] <- 1/age_width
+      }
+      
+      # prop is calculated from the relative flows into vs. out of this age group.
+      # For the first age group the flow in is equal to the birth rate (eta). For
+      # all subsequent age groups the flow in represents ageing from the previous
+      # group. The flow out is always equal to the rate of ageing or death.
+      if (i == 1) {
+        prop[i] <- eta/(r[i] + eta)
+      } else {
+        prop[i] <- prop[i-1]*r[i-1]/(r[i] + eta)
+      }
+    }
+    r_imm_age <- r + eta
   }
-  
-  r[n_age] = 0
-  
-  ###################################
-  ##
-  ## Modification of aging rates for immune functions.
-  ##
-  ## Proportions infected must always accord to the demographic
-  ## constraints when stratified. Immunity is a scalar and can
-  ##(in theory) increase without bound. We must make an adjustment
-  ## due to demography for aging of immunity.
-  ## Provide better explanation.
-  
-  r_imm_age <- rep(NA, n_age)
-  r_imm_age[1:(n_age-1)] <- r[1:(n_age-1)]*(prop[1:(n_age-1)]/prop[2:n_age])
-  r_imm_age[n_age] <- 0
   
   # calculate midpoint of age range. There is no midpoint for the final age
   # group, so use beginning of range instead
@@ -108,7 +136,9 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   omega_age <- 1/sum(prop * psi)
   
   ### Nora's code:
-  # psi <- omega_age*psi
+  if(is.null(no_omega)){
+    psi <- omega_age*psi  
+  }
   ###
   
   ###########################################################################
@@ -148,7 +178,7 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
   
   #######################
   # Should we cap the batch number?
-  # HH_eq[HH_eq>30] <- 30
+  HH_eq[HH_eq>K_max] <- K_max
   #######################
   
   # Is this equivalent to modelling infections as two processes?
@@ -327,7 +357,8 @@ human_equilibrium_vivax_full_het <- function(EIR, ft, p, age, h = NULL) {
       phi_lm = phi_LM_eq[,j],
       rpcr = r_PCR_eq[,j],
       EPS = EPS,
-      r = r
+      r = r,
+      r_imm_age = r_imm_age
     )
   })
 
@@ -407,7 +438,12 @@ human_equilibrium_vivax_summarise <- function(eq, p){
   
   # weighted_infectivity <- sum(colSums(states[,c("T","D","A","U")]) * hh_imm[,"psi"] * c(unlist(p[c("ct","cd","ca","cu")])))
   eta <- 1/p$average_age
-  omega <- 1 - p$rho*eta/(eta + 1/p$a0)
+  if(!is.null(no_omega)){
+    omega <- 1 - p$rho*eta/(eta + 1/p$a0)
+  } else {
+    omega <- 1
+  }
+  
   alpha <- p$blood_meal_rates * p$Q0
   foim <- foim * alpha / omega
   eq_summary <- cbind(age, states, hh_imm)
