@@ -528,7 +528,7 @@ vivax_equilibrium_init_create_combined <- function(age, ft,
     }
   }
   # Mosquito states
-  browser()
+  # browser()
   FOIv_eq <- sum(FOIvij_eq)
   # Iv_eq <- FOIv_eq * p$Surv0/(FOIv_eq + p$mu0)
   # Sv_eq <- p$mu0 * Iv_eq/(FOIv_eq * p$Surv0)
