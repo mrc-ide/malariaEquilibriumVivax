@@ -510,7 +510,9 @@ vivax_equilibrium_init_create_combined <- function(age, ft,
   ##############################
   ##############################
   # Vector model
-  # browser()
+  w_mean_blood_meal_rate <- sum(p$blood_meal_rates * p$species_proportions)
+  w_mean_Q0 <- sum(p$Q0 * p$species_proportions)
+  
   FOIvij_eq <- array(dim=c(na,nh,(K_max+1)))
   for (kk in 1:(K_max+1))
   {
@@ -518,7 +520,7 @@ vivax_equilibrium_init_create_combined <- function(age, ft,
     {
       for (i in 1:na)
       {
-        FOIvij_eq[i, j, kk] <-  p$blood_meal_rates * p$Q0 * foi_age[i] *
+        FOIvij_eq[i, j, kk] <-  w_mean_blood_meal_rate * w_mean_Q0 * foi_age[i] *
           rel_foi[j]/omega * (p$ct * T_eq[i, j,kk] +
                                 p$cd *I_D_eq[i, j,kk] + 
                                 p$ca * I_LM_eq[i, j,kk] +
@@ -528,7 +530,6 @@ vivax_equilibrium_init_create_combined <- function(age, ft,
     }
   }
   # Mosquito states
-  # browser()
   FOIv_eq <- sum(FOIvij_eq)
   # Iv_eq <- FOIv_eq * p$Surv0/(FOIv_eq + p$mu0)
   # Sv_eq <- p$mu0 * Iv_eq/(FOIv_eq * p$Surv0)
