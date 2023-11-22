@@ -23,7 +23,7 @@ transmission model at equilibrium. However, some models (e.g. the Griffin et
 al. 2014 model, the White et al. 2018 model) are quite complex, and can result in equilibrium solutions
 that are fairly in-depth. In these situations it is useful to have a
 "canonical" equilibrium solution that is tried and tested, and can be used
-reliably by multiple users. This package complement the malariaEquilibrium 
+reliably by multiple users. This package complements the malariaEquilibrium 
 package to store canonical equilibrium solutions for Plasmodium vivax malaria models.
 
 ## How to interact with this repos
@@ -69,44 +69,47 @@ library(malariaEquilibriumVivax)
 
 ### Working with parameters
 
-We start by loading a set of model parameters with the `load_parameter_set()`
-function. This loads an object from the *inst/extdata* folder of the package.
-Alternatively you can load your own parameter set from file.
+It's possibly easiest to begin with the default vivax parameter set as found in malariasimulation.
 
 ```{r}
-myparams <- load_parameter_set("Michael_parameters.rds")
-```
-
-Parameters are of class `model_params`, which is essentially just an ordinary R
-list with a few custom methods. For example, when we print we see the following:
-
-```{r}
-myparams
+vivax_params <- malariasimulation::get_parameters(parasite = "vivax")
 ```
 
 We can modify parameter values exactly as we would with a named list:
 
 ```{r}
-myparams$eta <- 0.1
+vivax_params$eta <- 0.1
 head(myparams)
+```
+
+These do not have parameter names that are consistent with Michael White's model and must be translated for use in the equilibrium solution.
+```{r}
+vivax_eq_params <- malariasimulation:::translate_vivax_parameters(vivax_params)
 ```
 
 ### Getting the equilibrium solution
 
-Now we can calculate the equilibrium solution using the `human_equilibrium_vivax_summarise()`
+Now we can calculate the equilibrium solution using the `vivax_equilibrium()`
 function. This assumes a fixed EIR and treatment rate (`ft`), and takes model
 parameters as input. It calculates the equilibrium solution for a defined age
 range:
 
 ```{r}
-eq <- human_equilibrium(EIR = 10, ft = 0.2, p = myparams, age = 0:10)
+eq <- vivax_equilibrium(EIR = 10, ft = 0.2, p = vivax_eq_params, age = 0:10)
+```
+
+We have two equilibrium solutions: a full solution that loops over hypnozoite batch numbers
+until reaching a limit (the default limit is set to 10 hypnozoite batches), 
+and a simplified, approximate, version that calculates the average for each age and biting heterogeneity group. 
+
+```{r}
+eq <- vivax_equilibrium(EIR = 10, ft = 0.2, p = vivax_eq_params, age = 0:10, v_eq = "simplified")
 ```
 
 The output elements are "states" and "FOIM". The former is a matrix with age
 brackets in rows, and model states or other downstream calculations in columns.
 For example, the column "S" gives the equilibrium proportion of humans in the
-susceptible state, while the column "pos_M" gives the proportion of hosts
-positive by microscopy in this bracket.
+susceptible state.
 
 ```{r}
 head(eq$states)
