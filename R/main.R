@@ -538,7 +538,7 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
                  "psi" = age_bite,
                  "phi_clin" = rowSums(phi_D_eq[,het,]*HH_eq[,het,])/rowSums(HH_eq[,het,]),
                  "phi_patent" = rowSums(phi_LM_eq[,het,]*HH_eq[,het,])/rowSums(HH_eq[,het,]),
-                 "dPCR" = rowSums(r_PCR_eq[,het,]*HH_eq[,het,])/rowSums(HH_eq[,het,]))
+                 "rPCR" = rowSums(r_PCR_eq[,het,]*HH_eq[,het,])/rowSums(HH_eq[,het,]))
     })
     
     #######################################################################################
