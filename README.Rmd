@@ -63,6 +63,7 @@ Finally, don't forget to load the package with:
 
 ```{r}
 library(malariaEquilibriumVivax)
+library(malariasimulation)
 ```
 
 ## Example
@@ -72,14 +73,14 @@ library(malariaEquilibriumVivax)
 It's possibly easiest to begin with the default vivax parameter set as found in malariasimulation.
 
 ```{r}
-vivax_params <- malariasimulation::get_parameters(parasite = "vivax")
+vivax_params <- get_parameters(parasite = "vivax")
 ```
 
 We can modify parameter values exactly as we would with a named list:
 
 ```{r}
 vivax_params$eta <- 0.1
-head(myparams)
+head(vivax_params)
 ```
 
 These do not have parameter names that are consistent with Michael White's model and must be translated for use in the equilibrium solution.
