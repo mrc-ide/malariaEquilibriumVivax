@@ -113,7 +113,7 @@ For example, the column "S" gives the equilibrium proportion of humans in the
 susceptible state.
 
 ```{r}
-head(eq$states)
+head(eq$states[[1]])
 ```
 
 The "FOIM" element gives the onward force of infection from humans to
