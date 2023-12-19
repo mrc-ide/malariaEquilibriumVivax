@@ -81,6 +81,7 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     ## Heterogeneity in mosquito bites
     
     sig_het = sqrt(sigma_squared)
+    N_het <- p$n_heterogeneity_groups
     x_het <- exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
     w_het <-     gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights
     
@@ -515,6 +516,10 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     
     inf_rvoir <- inf_rvoir*(age_bite/age_demog)/sum(inf_rvoir*(age_bite/age_demog))
     
+    Q0 <- p$Q0
+    foraging_time <- p$foraging_time
+    blood_meal_rates <- p$blood_meal_rates
+    
     av0 <- Q0 * 1 / (foraging_time + 1/blood_meal_rates)
     mv0 <- sum(omega_age * age_demog) * EIR_site/(I_M * av0)
     
@@ -564,10 +569,7 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     
     # Mosquito states
     FOIv_eq <- sum(FOIvij_eq)
-    
-    detach(p)
     return(list(states = states, FOIM = FOIv_eq))
-    
   }
 }
 
@@ -665,6 +667,7 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
   ## Heterogeneity in mosquito bites
   
   sig_het = sqrt(sigma_squared)
+  N_het <- p$n_heterogeneity_groups
   
   x_het <- exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
   w_het <-     gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights
@@ -924,6 +927,10 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
     
     inf_rvoir <- inf_rvoir*(age_bite/age_demog)/sum(inf_rvoir*(age_bite/age_demog))
     
+    Q0 <- p$Q0
+    foraging_time <- p$foraging_time
+    blood_meal_rates <- p$blood_meal_rates
+    
     av0 <- Q0 * 1 / (foraging_time + 1/blood_meal_rates)
     mv0 <- sum(omega_age * age_demog) * EIR_site/(I_M * av0)
     
@@ -971,8 +978,6 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
     
     # Mosquito states
     FOIv_eq <- sum(FOIvij_eq)
-
-    detach(p)
     return(list(states = states, FOIM = FOIv_eq))
     
 }
