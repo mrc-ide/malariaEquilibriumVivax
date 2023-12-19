@@ -37,7 +37,7 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     library(survival)
     library(statmod)
     library(binom)
-    attach(p)
+    suppressMessages(attach(p)) 
     
     #####################################
     ## 1.1. ##  Age and heterogeneity  ##
@@ -586,7 +586,9 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
   library(survival)
   library(statmod)
   library(binom)
-  attach(p)
+  
+  suppressMessages(attach(p)) 
+  
   #####################################
   ## 2.1. ##  Age and heterogeneity  ##
   #####################################  
