@@ -37,7 +37,6 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     library(survival)
     library(statmod)
     library(binom)
-    suppressMessages(attach(p)) 
     
     #####################################
     ## 1.1. ##  Age and heterogeneity  ##
@@ -47,6 +46,11 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     ## Age demography - replace with our own age demography, acknowledging that the oldest age group is dropped
     ## These represent age bounds
     max_age  = max(age)*365
+    mean_age <- p$mean_age
+    age_0 <- p$age_0
+    sigma_squared <- p$sigma_squared
+    rho_age <- p$rho_age
+    
     mu_H <- 1/mean_age
     age_bounds <- 365 * age
     N_age <- length(age_bounds) - 1
@@ -93,52 +97,52 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     ## 1.2. ##  Parameter definitions and additional assignments  ##
     ################################################################
     
-    # bb    ## mosquito -> human transmission probability
+    bb            <- p$bb           ## mosquito -> human transmission probability
     
-    # c_PCR ## human -> mosquito transmission probability (PCR)
-    # c_LM  ## human -> mosquito transmission probability (LM-detectable)
-    # c_D   ## human -> mosquito transmission probability (disease state)
-    # c_T   ## human -> mosquito transmission probability (treatment)
+    c_PCR         <- p$c_PCR        ## human -> mosquito transmission probability (PCR)
+    c_LM          <- p$c_LM         ## human -> mosquito transmission probability (LM-detectable)
+    c_D           <- p$c_D          ## human -> mosquito transmission probability (disease state)
+    c_T           <- p$c_T          ## human -> mosquito transmission probability (treatment)
     
-    # d_E   ## duration of liver-stage latency
-    # r_D   ## duraton of disease = 1/rate 
-    # r_T   ## duraton of prophylaxis = 1/rate
-    r_P       = 1/10    ## duraton of treatment = 1/rate
-    chi_treat = ft      ## proportion of symptomatic episodes receiving first-line treatment
+    d_E           <- p$d_E          ## duration of liver-stage latency
+    r_D           <- p$r_D          ## duraton of disease = 1/rate
+    r_T           <- p$r_T          ## duraton of prophylaxis = 1/rate
+    r_P           <- 1/10           ## duraton of treatment = 1/rate
+    chi_treat     <- ft             ## proportion of symptomatic episodes receiving first-line treatment
     
-    # r_par   ## rate of decay of anti-parasite immunity
-    # r_clin  ## rate of decay of clinical immunity
+    r_par         <- p$r_par        ## rate of decay of anti-parasite immunity
+    r_clin        <- p$r_clin       ## rate of decay of clinical immunity
     
     
-    # d_PCR_min ## maximum duration of PCR-detectable infection 
+    d_PCR_min     <- p$d_PCR_min    ## maximum duration of PCR-detectable infection
     
-    # mu_M      ## mosquito death rate = 1/(mosquito life expectancy): 1/6
-    # tau_M     ## duration of sporogony 
+    mu_M          <- p$mu_M         ## mosquito death rate = 1/(mosquito life expectancy): 1/6
+    tau_M         <- p$tau_M        ## duration of sporogony
     
-    # ff        ## relapse rate: 1/41
-    # gamma_L   ## duration of liver-stage carriage: 1/383
+    ff            <- p$ff           ## relapse rate: 1/41
+    gamma_L       <- p$gamma_L      ## duration of liver-stage carriage: 1/383
     
-    # K_max     ## Maximum number of hypnozoite batches
+    K_max         <- p$K_max        ## Maximum number of hypnozoite batches
     
-    # u_par        ## refractory period for anti-parasite immune boosting
-    # phi_LM_max   ## probability of LM_detectable infection with no immunity 
-    # phi_LM_min   ## probability of LM_detectable infection with maximum immunity 
-    # A_LM_50pc    ## blood-stage immunity scale parameter
-    # K_LM         ## blood-stage immunity shape parameter
-    # u_clin       ## refractory period for clinical immune boosting
-    # phi_D_max    ## probability of clinical episode with no immunity 
-    # phi_D_min    ## probability of clinical episode with maximum immunity
-    # A_D_50pc     ## clinical immunity scale parameter
-    # K_D          ## clinical immunity shape parameter
-    # A_d_PCR_50pc ## scale parameter for effect of anti-parasite immunity on PCR-detectable infection
-    # K_d_PCR      ## shape parameter for effect of anti-parasite immunity on PCR-detectable infection 
-    # d_PCR_max    ## maximum duration on PCR-detectable infection 
-    # d_LM         ## duration of LM-detectable infection 
-    # P_MI         ## Proportion of immunity acquired maternally
-    # d_MI         ## Rate of waning of maternal immunity
+    u_par         <- p$u_par        ## refractory period for anti-parasite immune boosting
+    phi_LM_max    <- p$phi_LM_max   ## probability of LM_detectable infection with no immunity
+    phi_LM_min    <- p$phi_LM_min   ## probability of LM_detectable infection with maximum immunity
+    A_LM_50pc     <- p$A_LM_50pc    ## blood-stage immunity scale parameter
+    K_LM          <- p$K_LM         ## blood-stage immunity shape parameter
+    u_clin        <- p$u_clin       ## refractory period for clinical immune boosting
+    phi_D_max     <- p$phi_D_max    ## probability of clinical episode with no immunity
+    phi_D_min     <- p$phi_D_min    ## probability of clinical episode with maximum immunity
+    A_D_50pc      <- p$A_D_50pc     ## clinical immunity scale parameter
+    K_D           <- p$K_D          ## clinical immunity shape parameter
+    A_d_PCR_50pc  <- p$A_d_PCR_50pc ## scale parameter for effect of anti-parasite immunity on PCR-detectable infection
+    K_d_PCR       <- p$K_d_PCR      ## shape parameter for effect of anti-parasite immunity on PCR-detectable infection
+    d_PCR_max     <- p$d_PCR_max    ## maximum duration on PCR-detectable infection
+    d_LM          <- p$d_LM         ## duration of LM-detectable infection
+    P_MI          <- p$P_MI         ## Proportion of immunity acquired maternally
+    d_MI          <- p$d_MI         ## Rate of waning of maternal immunity
     
-    r_LM = 1/d_LM
-    
+    r_LM <- 1/d_LM
+
     EIR_site   = EIR/365
     
     
@@ -597,7 +601,10 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
   ## Age demography
   
   max_age  = 80*365
-  mean_age = 22.5*365
+  mean_age <- p$mean_age
+  age_0 <- p$age_0
+  sigma_squared <- p$sigma_squared
+  rho_age <- p$rho_age
   
   mu_H <- 1/mean_age
   age_bounds <- 365 * age
@@ -680,35 +687,52 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
   ## 2.2. ##  Define model parameters  ##
   #######################################  
   
-  # aa        = 0.5/3.0     ## mosquito-biting frequency ( a = f*Q)
-  # bb        = 0.125         ## mosquito -> human transmission probability
-  # 
-  # c_PCR     = 0.035       ## human -> mosquito transmission probability (PCR)
-  # c_LM      = 0.1         ## human -> mosquito transmission probability (LM-detectable)
-  # c_D       = 0.8         ## human -> mosquito transmission probability (disease state)
-  # c_T       = 0.5*c_D     ## human -> mosquito transmission probability (treatment)
-  # 
-  # d_E       = 10          ## duration of liver-stage latency
-  # r_D       = 1/5         ## duraton of disease = 1/rate 
-  # r_T       = 1/1         ## duraton of prophylaxis = 1/rate
-  r_P       = 1/10        ## duraton of treatment = 1/rate
-  chi_treat = ft      ## proportion of symptomatic episodes receiving first-line treatment
-  
-  # r_par     = 1/(10*365)  ## rate of decay of anti-parasite immunity
-  # r_clin    = 1/(30*365)  ## rate of decay of clinical immunity
-  
-  
-  # d_PCR_min = 10.0        ## maximum duration of PCR-detectable infection 
-  
-  # mu_M      = 1/6         ## mosquito death rate = 1/(mosquito life expectancy)
-  # tau_M     = 8.4 	      ## duration of sporogony 
-  # 
-  # ff        = 1/41        ## relapse rate
-  # gamma_L   = 1/383       ## duration of liver-stage carriage
-  
-  
-    EIR_site   = EIR
-    r_LM = 1/d_LM
+    bb            <- p$bb           ## mosquito -> human transmission probability
+    
+    c_PCR         <- p$c_PCR        ## human -> mosquito transmission probability (PCR)
+    c_LM          <- p$c_LM         ## human -> mosquito transmission probability (LM-detectable)
+    c_D           <- p$c_D          ## human -> mosquito transmission probability (disease state)
+    c_T           <- p$c_T          ## human -> mosquito transmission probability (treatment)
+    
+    d_E           <- p$d_E          ## duration of liver-stage latency
+    r_D           <- p$r_D          ## duraton of disease = 1/rate
+    r_T           <- p$r_T          ## duraton of prophylaxis = 1/rate
+    r_P           <- 1/10           ## duraton of treatment = 1/rate
+    chi_treat     <- ft             ## proportion of symptomatic episodes receiving first-line treatment
+    
+    r_par         <- p$r_par        ## rate of decay of anti-parasite immunity
+    r_clin        <- p$r_clin       ## rate of decay of clinical immunity
+    
+    
+    d_PCR_min     <- p$d_PCR_min    ## maximum duration of PCR-detectable infection
+    
+    mu_M          <- p$mu_M         ## mosquito death rate = 1/(mosquito life expectancy): 1/6
+    tau_M         <- p$tau_M        ## duration of sporogony
+    
+    ff            <- p$ff           ## relapse rate: 1/41
+    gamma_L       <- p$gamma_L      ## duration of liver-stage carriage: 1/383
+    
+    K_max         <- p$K_max        ## Maximum number of hypnozoite batches
+    
+    u_par         <- p$u_par        ## refractory period for anti-parasite immune boosting
+    phi_LM_max    <- p$phi_LM_max   ## probability of LM_detectable infection with no immunity
+    phi_LM_min    <- p$phi_LM_min   ## probability of LM_detectable infection with maximum immunity
+    A_LM_50pc     <- p$A_LM_50pc    ## blood-stage immunity scale parameter
+    K_LM          <- p$K_LM         ## blood-stage immunity shape parameter
+    u_clin        <- p$u_clin       ## refractory period for clinical immune boosting
+    phi_D_max     <- p$phi_D_max    ## probability of clinical episode with no immunity
+    phi_D_min     <- p$phi_D_min    ## probability of clinical episode with maximum immunity
+    A_D_50pc      <- p$A_D_50pc     ## clinical immunity scale parameter
+    K_D           <- p$K_D          ## clinical immunity shape parameter
+    A_d_PCR_50pc  <- p$A_d_PCR_50pc ## scale parameter for effect of anti-parasite immunity on PCR-detectable infection
+    K_d_PCR       <- p$K_d_PCR      ## shape parameter for effect of anti-parasite immunity on PCR-detectable infection
+    d_PCR_max     <- p$d_PCR_max    ## maximum duration on PCR-detectable infection
+    d_LM          <- p$d_LM         ## duration of LM-detectable infection
+    P_MI          <- p$P_MI         ## Proportion of immunity acquired maternally
+    d_MI          <- p$d_MI         ## Rate of waning of maternal immunity
+    
+    r_LM <- 1/d_LM
+    EIR_site   = EIR/365
     
     
     ###################################################
