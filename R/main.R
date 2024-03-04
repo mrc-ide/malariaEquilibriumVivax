@@ -887,50 +887,40 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
   av0 <- Q0 * 1 / (foraging_time + 1/blood_meal_rates)
   mv0 <- sum(omega_age * age_demog) * EIR_site/(I_M * av0)
   
-  states <- lapply(1:N_het, function(het){
-    data.frame("age" = age_bounds[-N_age-1]/365,
-               "prop" = age_demog,
-               "S" = S_eq[,het],
-               "U" = I_PCR_eq[,het],
-               "A" = I_LM_eq[,het],
-               "D" = D_eq[,het],
-               "T" = T_eq[,het],
-               "P" = P_eq[,het],
-               "ID" = A_par_eq[,het],
-               "IDM" = A_par_mat_eq[,het],
-               "ICA" = A_clin_eq[,het],
-               "ICM" = A_clin_mat_eq[,het],
-               "HH" = HH_eq[,het],
-               "EIR" = EIR_site,
-               "inf" = lam_mosq,
-               # "n_hypnozoites" = 1 - HH_eq[HH_eq<=1] <- 1,
-               "E_M" = E_M,
-               "I_M" = I_M,
-               "inf_rvoir" = inf_rvoir,
-               "mv0" = mv0,
-               "psi" = age_bite,
-               "phi_clin" = phi_D_eq[,het],
-               "phi_patent" = phi_LM_eq[,het],
-               "dPCR" = r_PCR_eq[,het])
-  })
+  states_3d <- list("Age" = age,
+                    "HH" = HH_eq,
+                    "lambda" = lam_eq,
+                    "lambda_H" = lam_H_eq,
+                    "S" = S_eq,
+                    "U" = I_PCR_eq,
+                    "A" = I_LM_eq,
+                    "D" = I_D_eq,
+                    "T" = T_eq,
+                    "P" = P_eq,
+                    "ID" = A_par_eq,
+                    "IDM" = A_par_mat_eq,
+                    "ICA" = A_clin_eq,
+                    "ICM" = A_clin_mat_eq)
+  
   
   #######################################################################################
-  ## 3.1. ##  Vector model (adapted from Nora Schmidt's deterministic equilibrium code) ##
+  ## 3.1. ##  Vector model (copied from Nora Schmidt's deterministic equilibrium code) ##
   #######################################################################################
   
-  FOIvij_eq <- array(dim=c(N_age,N_het))
-  for (j in 1:N_het){
-    for (i in 1:N_age){
-      FOIvij_eq[i, j] <-  blood_meal_rates * Q0 * 
-        x_age_het[i,j] * (c_T * T_eq[i, j] +
-                            c_D * D_eq[i, j] +
-                            c_LM * I_LM_eq[i, j] +
-                            c_PCR * I_PCR_eq[i, j])
+  FOIvij_eq <- array(dim=c(N_age,N_het,(K_max+1)))
+  for (kk in 1:(K_max+1)){
+    for (j in 1:N_het){
+      for (i in 1:N_age){
+        FOIvij_eq[i, j, kk] <-  aa *
+          x_age_het[i,j] * (c_T * T_eq[i, j,kk] +
+                              c_D *I_D_eq[i, j,kk] +
+                              c_LM * I_LM_eq[i, j,kk] +
+                              c_PCR * I_PCR_eq[i, j,kk])
+      }
     }
   }
   
-  # Mosquito states
   FOIv_eq <- sum(FOIvij_eq)
-  return(list(states = states, FOIM = FOIv_eq))
+  return(list(states = states_3d, FOIM = FOIv_eq))
   
 }
