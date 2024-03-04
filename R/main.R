@@ -13,6 +13,16 @@
 
 vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
   
+  # age <- c(0.0*365.0, 0.2*365.0, 0.4*365.0, 0.6*365.0, 0.8*365.0, 1.0*365.0,
+  #                 1.2*365.0, 1.4*365.0, 1.6*365.0, 1.8*365.0, 2.0*365.0,
+  #                 2.2*365.0, 2.4*365.0, 2.6*365.0, 2.8*365.0, 3.0*365.0,
+  #                 3.4*365.0, 3.8*365.0, 4.2*365.0, 4.6*365.0, 5.0*365.0,
+  #                 5.5*365.0, 6.0*365.0, 6.5*365.0, 7.0*365.0, 7.5*365.0, 8.0*365.0, 8.5*365.0, 9.0*365.0, 9.5*365.0, 10.0*365.0,
+  #                 11.0*365.0, 12.0*365.0, 13.0*365.0, 14.0*365.0, 15.0*365.0, 16.0*365.0, 17.0*365.0, 18.0*365.0, 19.0*365.0, 20.0*365.0,
+  #                 22.0*365.0, 24.0*365.0, 26.0*365.0, 28.0*365.0, 30.0*365.0, 32.0*365.0, 34.0*365.0, 36.0*365.0, 38.0*365.0, 40.0*365.0,
+  #                 45.0*365.0, 50.0*365.0, 55.0*365.0, 60.0*365.0, 65.0*365.0, 70.0*365.0, 75.0*365.0, 80.0*365.0)/365
+  
+  
   ## Check Parameters
   if(!is.numeric(age)) stop("age provided is not numeric")
   if(!is.numeric(p$n_heterogeneity_groups)) stop("het_brackets provided is not numeric")
@@ -70,14 +80,31 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     r_age[N_age] = 0
     
     
+    # r_age_2 <- rep(NA, N_age)
+    # r_age_2[1] = mu_H*(1.0 - age_demog[1]) / age_demog[1]
+    # for(i in 1:(N_age-1)){
+    #   r_age_2[i+1] = (r_age_2[i] * age_demog[i] - mu_H*age_demog[i+1]) / age_demog[i+1]
+    # }
+    # r_age_2[N_age] <- 0
+    # cbind(r_age, r_age_2)
+    
+    
     ###########################################################################
     ## Age-dependent exposure to mosquito bites
     
     age_bite = 1 - rho_age*exp( -age_mids/age_0 )
     omega_age = 1/sum( age_demog*age_bite )
+    
+    # omega_age_2 <- 0
+    # 
+    # for(i in 1:N_age){
+    #   omega_age_2 <- omega_age_2 + age_demog[i] * age_bite[i]
+    # }
+    # omega_age_2 = 1 / omega_age_2;
+    # browser()
+    
+    
     age_bite = omega_age*age_bite
-    
-    
     ###########################################################################
     ## Heterogeneity in mosquito bites
     
@@ -85,6 +112,23 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     N_het <- p$n_heterogeneity_groups
     x_het <- exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
     w_het <-     gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights
+    
+    
+    # x_het <- gauher(theta = p)$x_het
+    # w_het <- gauher(theta = p)$w_het
+    
+    ##########################################################
+    ## Not sure if GQ works perfectly with log-Normal
+    ## for small N_het - might need to switch to Gamma
+    ## x_het <- gauss.quad.prob(N_het, dist="gamma", alpha=1, beta=1)$nodes
+    ## w_het <- gauss.quad.prob(N_het, dist="gamma", alpha=1, beta=1)$weights
+    
+    # par(mfrow = c(1,2))
+    # plot(x_het, type = "l", ylim = c(0, 1000))
+    # points(gauher(theta = p)$x_het, type = "l", col = 2)
+    # 
+    # plot(w_het, type = "l", ylim = c(0,0.35))
+    # points(gauher(theta = p)$w_het, type = "l", col = 2)
     
     x_age_het <- age_bite%o%x_het
     w_age_het <- age_demog%o%w_het
@@ -486,6 +530,43 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
       }
     }
     
+    #########################################################
+    ## 2.6. ##  Age stratify                               ##
+    #########################################################
+    
+    # sum(aa * array(x_age_het, dim = c(dim(x_age_het),11)) * (c_PCR*I_PCR_eq + c_LM*I_LM_eq + c_D*I_D_eq + c_T*T_eq))
+    
+    #########################################################
+    ## 2.7. ##  Mosquitoes and infectious reservoirs       ##
+    #########################################################
+    
+    # lam_mosq <- aa*(c_PCR*sum(I_PCR_eq) + 
+    #                   c_LM*sum(I_LM_eq) + 
+    #                   c_D*sum(I_D_eq) + 
+    #                   c_T*sum(T_eq)) 
+    # 
+    # E_M = (lam_mosq/(mu_M + lam_mosq))*(1 - exp(-mu_M*tau_M))
+    # 
+    # I_M = (lam_mosq/(mu_M + lam_mosq))*exp(-mu_M*tau_M)
+    # 
+    # inf_rvoir = rep(NA, N_age)
+    
+    # for(i in 1:N_age)
+    # {
+    #   inf_rvoir[i] = c_PCR*sum(I_PCR_eq[i,,]*HH_eq[i,,]) + 
+    #     c_LM*sum(I_LM_eq[i,,]*HH_eq[i,,]) + 
+    #     c_D*sum(I_D_eq[i,,]*HH_eq[i,,]) + 
+    #     c_T*sum(T_eq[i,,]*HH_eq[i,,])
+    # }
+    # 
+    # inf_rvoir <- inf_rvoir*(age_bite/age_demog)/sum(inf_rvoir*(age_bite/age_demog))
+    
+    # Q0 <- p$Q0
+    # foraging_time <- p$foraging_time
+    # blood_meal_rates <- p$blood_meal_rates
+    
+    # av0 <- Q0 * 1 / (foraging_time + 1/blood_meal_rates)
+    # mv0 <- sum(omega_age * age_demog) * EIR_site/(I_M * av0)
     
     states_3d <- list("Age" = age,
                       "HH" = HH_eq,
@@ -934,3 +1015,106 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
   return(list(states = states, FOIM = FOIv_eq))
   
 }
+
+
+gauher <- function(theta, iter = 10) {
+  N_het <- theta$n_heterogeneity_groups  # Assuming x_het is already defined
+  x <- numeric(N_het)
+  w <- numeric(N_het)
+  
+  #############################
+  # PART 1
+  
+  EPS <- 1.0e-14
+  PIM4 <- 0.7511255444649425
+  MAXIT <- iter
+  m <- (N_het + 1) %/% 2
+  # browser()
+  for (i in 1:m) {
+    if (i == 1) {
+      z <- sqrt(2 * N_het + 1) - 1.85575 * (2 * N_het + 1) ^ -0.16667
+    } else if (i == 2) {
+      z <- z - 1.14 * (N_het ^ 0.426) / z
+    } else if (i == 3) {
+      z <- 1.86 * z - 0.86 * x[1]
+    } else if (i == 4) {
+      z <- 1.91 * z - 0.91 * x[2]
+    } else {
+      z <- 2.0 * z - x[i - 2]
+    }
+    its <- 0
+    while (its < MAXIT) {
+      p1 <- PIM4
+      p2 <- 0.0
+      for (j in 1:N_het) {
+        p3 <- p2
+        p2 <- p1
+        p1 <- z * sqrt(2.0 / (j + 1)) * p2 - sqrt(j / (j + 1)) * p3
+      }
+      pp <- sqrt(2 * N_het) * p2
+      z1 <- z
+      z <- z1 - p1 / pp
+      if (abs(z - z1) <= EPS) break
+      its <- its + 1
+    }
+    # browser()
+    if (its > MAXIT) stop("too many iterations in gauher")
+    x[i] <- z
+    x[N_het - i + 1] <- -z
+    w[i] <- 2.0 / (pp^2)
+    w[N_het - i + 1] <- w[i]
+  }
+  
+  #############################
+  # PART 2
+  w_sum <- sum(w)
+  
+  x_het <- numeric(N_het)
+  w_het <- numeric(N_het)
+  
+  theta$sig_het <- sqrt(theta$sigma_squared)
+  for (j in 1:N_het) {
+    # browser()
+    x_het[j] <- exp(theta$sig_het * x[N_het + 1 - j] * sqrt(2.0) - 0.5 * theta$sig_het^2)
+    w_het[j] <- w[j] / w_sum
+  }
+  
+  #############################
+  # temporary for N_het = 1
+  
+  if (N_het == 1) {
+    x_het[1] <- 1.0
+    w_het[1] <- 1.0
+  }
+  w_age_het <- matrix(NA, nrow = N_age, ncol = N_het)
+  for (i in 1:N_age) {
+    for (j in 1:N_het) {
+      x_age_het[i, j] <- age_bite[i] * x_het[j]
+      w_age_het[i, j] <- age_demog[i] * w_het[j]
+    }
+  }
+  
+  #############################
+  # Boundaries of heterogeneity compartments
+  
+  x_het_bounds <- numeric(N_het + 1)
+  x_het_bounds[1] <- 0.0
+  
+  for (j in 2:(N_het + 1)) {
+    x_het_bounds[j] <- exp(0.5 * (log(x_het[j - 1]) + log(x_het[j])))
+  }
+  
+  theta$het_max <- 100
+  x_het_bounds[N_het + 1] <- theta$het_max
+  
+  return(list(x_het = x_het,
+              w_het = w_het))
+  
+  # exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
+  # plot(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights, type = "l")
+  # points(w_het, type = "l", col = 2)
+  # 
+  # plot(exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes), type = "l")
+  # points(x_het, type = "l", col = 2)
+}
+
