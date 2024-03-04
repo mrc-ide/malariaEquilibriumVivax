@@ -82,7 +82,12 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
     ## Heterogeneity in mosquito bites
     
     sig_het = sqrt(sigma_squared)
-    N_het <- p$n_heterogeneity_groups
+    if(isFALSE(p$enable_heterogeneity)){
+      N_het <- 1
+    } else {
+      N_het <- p$n_heterogeneity_groups
+    }
+    
     x_het <- exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
     w_het <-     gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights
     
