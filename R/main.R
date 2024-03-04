@@ -500,7 +500,10 @@ vivax_equilibrium <- function(age, ft, EIR, p, v_eq = "full"){
                       "ID" = A_par_eq,
                       "IDM" = A_par_mat_eq,
                       "ICA" = A_clin_eq,
-                      "ICM" = A_clin_mat_eq)
+                      "ICM" = A_clin_mat_eq,
+                      "rPCR" = r_PCR_eq,
+                      "phi_patent" = phi_LM_eq,
+                      "phi_clin" = phi_D_eq)
     
     
     #######################################################################################
@@ -900,7 +903,10 @@ vivax_equilibrium_simplified <- function(age, ft, EIR, p, v_eq = "full"){
                     "ID" = A_par_eq,
                     "IDM" = A_par_mat_eq,
                     "ICA" = A_clin_eq,
-                    "ICM" = A_clin_mat_eq)
+                    "ICM" = A_clin_mat_eq,
+                    "rPCR" = r_PCR_eq,
+                    "phi_patent" = phi_LM_eq,
+                    "phi_clin" = phi_D_eq)
   
   
   #######################################################################################
