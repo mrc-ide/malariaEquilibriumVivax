@@ -6,7 +6,7 @@
 #'   al. 2014 model, the White et al. 2018 model) are quite complex, and can result in equilibrium solutions
 #'   that are fairly in-depth. In these situations it is useful to have a
 #'   "canonical" equilibrium solution that is tried and tested, and can be used
-#'   reliably by multiple users. This package complement the malariaEquilibrium 
+#'   reliably by multiple users. This package complement the malariaEquilibriumVivax 
 #'   package to store canonical equilibrium solutions for Plasmodium vivax malaria models.
 #'
 #' @docType package
