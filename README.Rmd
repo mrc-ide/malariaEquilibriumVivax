@@ -99,14 +99,6 @@ range:
 eq <- vivax_equilibrium(EIR = 10, ft = 0.2, p = vivax_eq_params, age = 0:10)
 ```
 
-We have two equilibrium solutions: a full solution that loops over hypnozoite batch numbers
-until reaching a limit (the default limit is set to 10 hypnozoite batches), 
-and a simplified, approximate, version that calculates the average for each age and biting heterogeneity group. 
-
-```{r}
-eq <- vivax_equilibrium(EIR = 10, ft = 0.2, p = vivax_eq_params, age = 0:10, v_eq = "simplified")
-```
-
 The output elements are "states" and "FOIM". The former is a matrix with age
 brackets in rows, and model states or other downstream calculations in columns.
 For example, the column "S" gives the equilibrium proportion of humans in the
