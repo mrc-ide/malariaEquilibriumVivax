@@ -2,6 +2,7 @@
 % Please edit documentation in R/malariaEquilibriumVivax.R
 \docType{package}
 \name{malariaEquilibriumVivax}
+\alias{malariaEquilibriumVivax-package}
 \alias{malariaEquilibriumVivax}
 \title{malariaEquilibriumVivax}
 \description{
@@ -10,6 +11,23 @@ Often we are interested in the state of a given malaria
   al. 2014 model, the White et al. 2018 model) are quite complex, and can result in equilibrium solutions
   that are fairly in-depth. In these situations it is useful to have a
   "canonical" equilibrium solution that is tried and tested, and can be used
-  reliably by multiple users. This package complement the malariaEquilibrium 
+  reliably by multiple users. This package complement the malariaEquilibriumVivax 
   package to store canonical equilibrium solutions for Plasmodium vivax malaria models.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item Report bugs at \url{https://github.com/mrc-ide/malariaEquilibriumVivax/issues}
+}
+
+}
+\author{
+\strong{Maintainer}: Richard Sheppard \email{richard.sheppard11@imperial.ac.uk}
+
+Authors:
+\itemize{
+  \item Pete Winskill \email{p.winskill@imperial.ac.uk}
+  \item Giovanni Charles \email{giovanni.charles@gmail.com}
+}
+
 }

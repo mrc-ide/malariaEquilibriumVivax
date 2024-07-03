@@ -4,16 +4,24 @@
 \alias{vivax_equilibrium}
 \title{Vivax equilibrium solution with biting heterogeneity}
 \usage{
-vivax_equilibrium(age, ft, EIR, p, v_eq = "full")
+vivax_equilibrium(
+  EIR,
+  ft,
+  p,
+  age = c(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8, 3, 3.4,
+    3.8, 4.2, 4.6, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 75,
+    80)
+)
 }
 \arguments{
-\item{age}{vector of age groups, in units of years}
+\item{EIR}{EIR for adults, in units of infectious bites per person per year}
 
 \item{ft}{proportion of clinical cases effectively treated}
 
-\item{EIR}{EIR for adults, in units of infectious bites per person per year}
-
 \item{p}{vector of model parameters}
+
+\item{age}{vector of age groups, in units of years}
 }
 \description{
 Returns the vivax equilibrium states for the model of White et al.,

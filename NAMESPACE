@@ -3,5 +3,4 @@
 export("%>%")
 export(malariaEqVivax_file)
 export(vivax_equilibrium)
-export(vivax_equilibrium_simplified)
 importFrom(magrittr,"%>%")
