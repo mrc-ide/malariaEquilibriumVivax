@@ -36,10 +36,6 @@ vivax_equilibrium <- function(EIR, ft, p,
   assert_noduplicates(age)
   assert_increasing(age)
   
-  library(survival)
-  library(statmod)
-  library(binom)
-  
   #####################################
   ## 1.1. ##  Age and heterogeneity  ##
   #####################################  
@@ -83,8 +79,8 @@ vivax_equilibrium <- function(EIR, ft, p,
   
   sig_het = sqrt(sigma_squared)
   N_het <- p$n_heterogeneity_groups
-  x_het <- exp(gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
-  w_het <-     gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights
+  x_het <- exp(statmod::gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$nodes)
+  w_het <-     statmod::gauss.quad.prob(N_het, dist="normal", mu=-0.5*sig_het^2, sigma=sig_het)$weights
   
   x_age_het <- age_bite%o%x_het
   w_age_het <- age_demog%o%w_het

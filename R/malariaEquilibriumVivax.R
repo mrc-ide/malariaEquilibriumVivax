@@ -9,6 +9,6 @@
 #'   reliably by multiple users. This package complement the malariaEquilibriumVivax 
 #'   package to store canonical equilibrium solutions for Plasmodium vivax malaria models.
 #'
-#' @docType _PACKAGE
+#' @docType package
 #' @name malariaEquilibriumVivax
-NULL
+"_PACKAGE"
