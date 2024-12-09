@@ -182,7 +182,7 @@ vivax_equilibrium <- function(EIR, ft, p,
   ## 2.1. ##  FoI and proportion with hypnozoites  ##
   ###################################################
   
-  lam_eq = EIR_site*bb*x_age_het
+  lam_eq = EIR_site*bb*x_age_het*(1-p$duffy_negative_perc)
   
   HH_eq = array(NA, dim=c(N_age, N_het, K_max+1))
   for(j in 1:N_het){
