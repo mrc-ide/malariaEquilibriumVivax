@@ -72,7 +72,13 @@ vivax_equilibrium <- function(EIR, ft, p,
   
   age_bite = 1 - rho_age*exp(-age_mids/age_0)
   omega_age = 1/sum(age_demog*age_bite)
-  age_bite = omega_age*age_bite
+  ## This part standardises the population level (including age structuring) to
+  ## the initial EIR value. The Pf model does not do this, so for consistency we
+  ## are changing this to the Pf method. We do not believe this will make a 
+  ## fundemental change to analytical outputs.
+  if(isTRUE(p$vivax_EIR_at_population_level)){
+    age_bite = omega_age*age_bite
+  }
   
   ###########################################################################
   ## Heterogeneity in mosquito bites
@@ -519,7 +525,15 @@ vivax_equilibrium <- function(EIR, ft, p,
     }
   }
   
-  FOIv_eq <- sum(FOIvij_eq)
+  ## When we remove the age-standardisation from the earlier EIR calculation,
+  ## we need to instead account for this in the calculation of FOIM, 
+  ## as found in the pf model.
+  if(isTRUE(p$vivax_EIR_at_population_level)){
+    FOIv_eq <- sum(FOIvij_eq)
+  } else {
+    FOIv_eq <- sum(FOIvij_eq) * omega_age 
+  }
+  
   return(list(states = states_3d, FOIM = FOIv_eq))
   
 }
